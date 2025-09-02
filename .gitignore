@@ -1,0 +1,22 @@
+# Standard Python .gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.env.*
+*.sqlite3
+.DS_Store
+*.egg-info/
+
+
+# .gitignore
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+env/
+bot_data.db
+bot_data.db-journal

@@ -1,0 +1,8 @@
+python-telegram-bot
+APScheduler
+aiosqlite
+python-dotenv
+pytz
+SQLAlchemy
+# Optional: for LLM integration
+groq
