@@ -32,6 +32,8 @@ async def main():
         logger.critical("TELEGRAM_BOT_TOKEN or OWNER_TELEGRAM_ID environment variable not set. Exiting.")
         return
     
+    # Initialize the database connection pool first
+    await db_utils.init_pool()
     await db_utils.initialize_database()
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()

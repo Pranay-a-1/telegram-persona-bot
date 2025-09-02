@@ -1,7 +1,8 @@
 python-telegram-bot
 APScheduler
-aiosqlite
 python-dotenv
 pytz
 SQLAlchemy
 groq
+psycopg2-binary
+asyncpg

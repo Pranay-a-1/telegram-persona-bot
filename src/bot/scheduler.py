@@ -17,7 +17,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Environment Variables ---
-DATABASE_URL = f"sqlite:///{os.getenv('DATABASE_PATH', 'bot_data.db')}"
+# Use DATABASE_URL from environment, replacing 'asyncpg' with 'psycopg2' for SQLAlchemy
+DATABASE_URL = os.getenv("DATABASE_URL", "").replace("asyncpg", "psycopg2")
 OWNER_ID_STR = os.getenv("OWNER_TELEGRAM_ID")
 OWNER_ID = int(OWNER_ID_STR) if OWNER_ID_STR else 0
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") # Get the token for pickling
