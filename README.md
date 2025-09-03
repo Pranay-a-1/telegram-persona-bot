@@ -12,7 +12,6 @@ A highly configurable Telegram bot designed for personal use, capable of adoptin
 * **Easy Configuration**: Set up and customize the bot using environment variables.  
 * **Data Persistence**: Uses a SQLite database to store settings, conversation history, and schedules.  
 * **Optional LLM Integration**: Enhance responses with a powerful language model using the Groq API.  
-* **Simple Deployment**: Deploy easily to services like Render.com.
 
 ## **How It Works**
 
@@ -79,26 +78,12 @@ You can interact with the bot using the following commands in your private chat:
 
 Any message that is not a command will be treated as part of the conversation, and the bot will respond based on its current persona.
 
-## **Deployment**
-
-This bot is ready to be deployed on [Render](https://render.com/). The render.yaml file in the repository configures a Background Worker to run the bot.
-
-To deploy:
-
-1. Fork this repository to your GitHub account.  
-2. On the Render dashboard, create a new "Blueprint" service.  
-3. Connect the forked repository.  
-4. In the "Environment" tab, add the necessary secrets (TELEGRAM\_BOT\_TOKEN, OWNER\_TELEGRAM\_ID, GROQ\_API\_KEY).  
-5. Deploy\! Render will automatically install dependencies and start the bot.
-
-The service uses a persistent disk to ensure your SQLite database is not lost between restarts.
 
 ## **Project Structure**
 
 .  
 ├── .gitignore  
 ├── README.md  
-├── render.yaml  
 ├── requirements.txt  
 ├── schema.sql  
 └── src  
