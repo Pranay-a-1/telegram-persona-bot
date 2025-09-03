@@ -47,7 +47,7 @@ async def main():
     application.add_handler(CommandHandler("start", handlers.start_command))
     application.add_handler(CommandHandler("set_persona", handlers.set_persona_command))
     application.add_handler(CommandHandler("personas", handlers.list_personas_command))
-    application.add_handler(CommandHandler("set_times", handlers.set_times_command))
+    application.add_handler(CommandHandler("set_schedule", handlers.set_schedule_command))
     application.add_handler(CommandHandler("memory_clear", handlers.clear_memory_command))
     application.add_handler(CommandHandler("export_memory", handlers.export_memory_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.handle_message))
@@ -68,9 +68,8 @@ async def main():
         await application.initialize()
         await application.start()
         
-        # For Railway deployment - use webhook or polling based on environment
+        # For Railway deployment - use simple polling
         if os.getenv("RAILWAY_ENVIRONMENT"):
-            # Railway environment - keep simple polling
             await application.updater.start_polling()
             logger.info("Bot started with polling for Railway deployment.")
         else:

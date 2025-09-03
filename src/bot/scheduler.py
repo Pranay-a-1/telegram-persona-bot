@@ -17,19 +17,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Environment Variables ---
-# Use DATABASE_URL from environment, replacing 'asyncpg' with 'psycopg2' for SQLAlchemy
-# --- Environment Variables ---
-# Use DATABASE_URL from environment, replacing 'asyncpg' with 'psycopg2' for SQLAlchemy
 db_url_raw = os.getenv("DATABASE_URL")
 if not db_url_raw:
     logger.warning("DATABASE_URL environment variable not set. Scheduler will use memory job store.")
     DATABASE_URL = None
 else:
+    # Replace asyncpg with psycopg2 for SQLAlchemy compatibility
     DATABASE_URL = db_url_raw.replace("asyncpg", "psycopg2")
 
 OWNER_ID_STR = os.getenv("OWNER_TELEGRAM_ID")
 OWNER_ID = int(OWNER_ID_STR) if OWNER_ID_STR else 0
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") # Get the token for pickling
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # --- Scheduler Setup ---
 jobstores = {
@@ -41,12 +39,8 @@ jobstores = {k: v for k, v in jobstores.items() if v is not None}
 scheduler = AsyncIOScheduler(jobstores=jobstores, timezone=os.getenv("TIMEZONE", "UTC"))
 
 async def send_ping(bot_token: str, user_id: int):
-    """
-    The job function that sends a scheduled message.
-    It creates a temporary Bot instance to avoid pickling issues.
-    """
+    """The job function that sends a scheduled message."""
     try:
-        # Create a lightweight, temporary bot instance just for this task
         bot = Bot(token=bot_token)
         current_persona = await db_utils.get_user_setting(user_id, 'persona')
         message = await generate_ping(current_persona)
@@ -57,51 +51,71 @@ async def send_ping(bot_token: str, user_id: int):
 
 async def sync_and_reschedule_jobs():
     """
-    Clears existing jobs and schedules new ones based on the database config.
-    This function no longer needs the bot object passed to it.
+    Clears ALL existing jobs for the owner and schedules a new one based on the
+    ping frequency from the database, respecting the DND period (00:00-06:00).
     """
     if not OWNER_ID or not TELEGRAM_TOKEN:
         logger.warning("OWNER_TELEGRAM_ID or TELEGRAM_BOT_TOKEN not set. Scheduler cannot run.")
         return
 
     logger.info("Syncing and rescheduling jobs...")
-    
-    # Remove all existing jobs for the owner to avoid duplicates
-    removed = 0
+
+    # --- Clear all previous jobs for the owner ---
+    # This is crucial to remove any lingering jobs from the old format.
+    removed_count = 0
     for job in scheduler.get_jobs():
-        # Check args safely before accessing index
+        # The user_id is passed as the second argument to send_ping
         if job.args and len(job.args) > 1 and job.args[1] == OWNER_ID:
             job.remove()
-            removed += 1
+            removed_count += 1
             logger.info(f"Removed existing job: {job.id}")
-    if removed == 0:
-        logger.info("No existing jobs to remove.")
-
-    # Fetch schedule and timezone from DB
-    schedule_times = await db_utils.get_schedule(OWNER_ID)
-    user_timezone_str = await db_utils.get_user_setting(OWNER_ID, 'timezone')
-    logger.info(f"Fetched schedule times: {schedule_times} with timezone: {user_timezone_str}")
     
-    # Schedule new jobs
-    for time_str in schedule_times:
-        hour, minute = map(int, time_str.split(':'))
-        job_id = f"ping_{OWNER_ID}_{hour}_{minute}"
-        logger.info(f"Scheduling job {job_id} for {time_str} in timezone {user_timezone_str}")
-        scheduler.add_job(
-            send_ping,
-            'cron',
-            hour=hour,
-            minute=minute,
-            timezone=pytz.timezone(user_timezone_str),
-            id=job_id,
-            # Pass the TOKEN (a string) instead of the bot object
-            args=[TELEGRAM_TOKEN, OWNER_ID],
-            replace_existing=True,
-            misfire_grace_time=3600
-        )
+    if removed_count > 0:
+        logger.info(f"Total of {removed_count} old jobs removed for user {OWNER_ID}.")
+    else:
+        logger.info(f"No existing jobs found for user {OWNER_ID}.")
+
+
+    # --- Schedule the new single job ---
+    job_id = f"ping_{OWNER_ID}"
+    
+    # Fetch new schedule settings
+    frequency_hours = await db_utils.get_user_setting(OWNER_ID, 'ping_frequency_hours')
+    user_timezone_str = await db_utils.get_user_setting(OWNER_ID, 'timezone')
+    
+    if frequency_hours is None or user_timezone_str is None:
+        logger.error(f"Could not retrieve schedule settings for user {OWNER_ID}. Aborting reschedule.")
+        return
+
+    # --- Generate Cron Expression ---
+    # The "Do Not Disturb" period is from 00:00 to 05:59. Pings can start at 06:00.
+    # The active period is from 06:00 to 23:59.
+    hour_cron = f"6-23/{frequency_hours}"
+    if frequency_hours == 24:
+        # For a 24-hour frequency, just ping once a day at the start of the active window.
+        hour_cron = "6"
+
+    logger.info(
+        f"Scheduling job for user {OWNER_ID} with frequency {frequency_hours} hours. "
+        f"Cron hour expression: '{hour_cron}' in timezone {user_timezone_str}"
+    )
+
+    scheduler.add_job(
+        send_ping,
+        'cron',
+        hour=hour_cron,
+        minute=0,
+        timezone=pytz.timezone(user_timezone_str),
+        id=job_id,
+        args=[TELEGRAM_TOKEN, OWNER_ID],
+        replace_existing=True,
+        misfire_grace_time=3600  # If the bot was offline, run jobs that are up to 1 hour late
+    )
+
     if scheduler.get_jobs():
         logger.info("Current scheduled jobs:")
         for job in scheduler.get_jobs():
             logger.info(f"- Job ID: {job.id}, Trigger: {job.trigger}, Next run: {job.next_run_time}")
     else:
         logger.warning("No jobs scheduled after sync!")
+

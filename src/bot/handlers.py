@@ -13,6 +13,7 @@ from bot import memory, personas, scheduler
 # --- Constants ---
 OWNER_ID = int(os.getenv("OWNER_TELEGRAM_ID", 0))
 VALID_PERSONAS = list(personas.PERSONAS.keys())
+VALID_FREQUENCIES = [1, 2, 3, 4, 6, 8, 12, 24]
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -45,7 +46,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Available commands:\n"
         "/personas - List available personas\n"
         "/set_persona <name> - Switch my personality\n"
-        "/set_times HH:MM HH:MM ... - Configure daily ping times\n"
+        "/set_schedule <hours> - Configure ping frequency (e.g., 1, 2, 4, etc.)\n"
         "/memory_clear - Clear our conversation history\n"
         "/export_memory - Export our conversation as a CSV file"
     )
@@ -78,33 +79,40 @@ async def list_personas_command(update: Update, context: ContextTypes.DEFAULT_TY
     await update.message.reply_text(message)
 
 @owner_only
-async def set_times_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /set_times command."""
+async def set_schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles the /set_schedule command for ping frequency."""
     user_id = update.effective_user.id
+    
     if not context.args:
-        current_schedule = await db_utils.get_schedule(user_id)
-        current_tz = await db_utils.get_user_setting(user_id, 'timezone')
+        current_frequency = await db_utils.get_user_setting(user_id, 'ping_frequency_hours')
+        freq_options = ", ".join(map(str, VALID_FREQUENCIES))
         await update.message.reply_text(
-            f"Current schedule ({current_tz}): {', '.join(current_schedule)}\n"
-            "Usage: /set_times HH:MM HH:MM ...\n"
-            "Example: /set_times 09:00 12:30 22:00"
+            f"Pings are currently set to every {current_frequency} hour(s).\n\n"
+            "To change this, use `/set_schedule <hours>`.\n"
+            f"Valid options for hours are: {freq_options}.\n\n"
+            "Pings will not be sent between midnight and 6 AM."
         )
         return
 
-    new_times = []
-    time_pattern = re.compile(r'^([01]\d|2[0-3]):([0-5]\d)$')
-    for time_str in context.args:
-        if time_pattern.match(time_str):
-            new_times.append(time_str)
-        else:
-            await update.message.reply_text(f"Invalid time format: {time_str}. Please use HH:MM.")
+    try:
+        new_frequency = int(context.args[0])
+        if new_frequency not in VALID_FREQUENCIES:
+            await update.message.reply_text(f"Invalid frequency. Please choose from: {', '.join(map(str, VALID_FREQUENCIES))}")
             return
-    
-    await db_utils.update_schedule(user_id, new_times)
-    await scheduler.sync_and_reschedule_jobs() # Reschedule jobs
-    
-    await update.message.reply_text(f"Ping schedule updated to: {', '.join(new_times)}")
-    logger.info(f"User {user_id} updated schedule to {new_times}")
+            
+        await db_utils.update_user_setting(user_id, 'ping_frequency_hours', new_frequency)
+        await scheduler.sync_and_reschedule_jobs()  # Immediately apply the new schedule
+        
+        await update.message.reply_text(
+            f"Success! I will now ping you every {new_frequency} hour(s) between 6 AM and midnight."
+        )
+        logger.info(f"User {user_id} updated ping frequency to every {new_frequency} hours.")
+
+    except (IndexError, ValueError):
+        await update.message.reply_text("Invalid format. Please provide a number for the frequency.")
+    except Exception as e:
+        logger.error(f"Error setting schedule: {e}", exc_info=True)
+        await update.message.reply_text("An error occurred while trying to set the schedule.")
 
 @owner_only
 async def clear_memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

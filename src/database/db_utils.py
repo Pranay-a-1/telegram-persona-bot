@@ -2,7 +2,7 @@
 import asyncpg
 import logging
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 OWNER_ID = int(os.getenv("OWNER_TELEGRAM_ID", 0))
@@ -24,59 +24,74 @@ async def init_pool():
     logger.info("Database connection pool initialized.")
 
 async def initialize_database():
-    """Initializes the database and creates tables if they don't exist."""
+    """Initializes and migrates the database schema."""
     try:
         async with POOL.acquire() as conn:
-            with open('schema.sql', 'r') as f:
+            # --- Schema Initialization ---
+            with open('src/bot/schema.sql', 'r') as f:
+                # This will create tables if they don't exist
                 await conn.execute(f.read())
+            logger.info("Initial schema check complete. Tables created if they did not exist.")
 
-            # Check if default settings and schedule exist for the owner
+            # --- Schema Migrations ---
+            # Migration 1: Add ping_frequency_hours if it doesn't exist
+            try:
+                await conn.execute("ALTER TABLE settings ADD COLUMN ping_frequency_hours INTEGER NOT NULL DEFAULT 1;")
+                logger.info("Migration successful: Added 'ping_frequency_hours' column to settings.")
+            except asyncpg.exceptions.DuplicateColumnError:
+                # Column already exists, which is fine.
+                pass
+            except Exception as e:
+                logger.error(f"Error during 'ping_frequency_hours' migration: {e}")
+
+            # Migration 2: Drop the old 'schedule' table if it exists
+            try:
+                await conn.execute("DROP TABLE IF EXISTS schedule;")
+                logger.info("Migration successful: Dropped obsolete 'schedule' table.")
+            except Exception as e:
+                logger.error(f"Error dropping 'schedule' table: {e}")
+
+
+            # --- Default Data Initialization for Owner ---
+            # Check if default settings exist for the owner
             row = await conn.fetchrow("SELECT * FROM settings WHERE user_id = $1", OWNER_ID)
             if row is None:
                 await conn.execute(
-                    "INSERT INTO settings (user_id, timezone) VALUES ($1, $2)",
-                    OWNER_ID, DEFAULT_TIMEZONE
+                    "INSERT INTO settings (user_id, timezone, persona, ping_frequency_hours) VALUES ($1, $2, $3, $4)",
+                    OWNER_ID, DEFAULT_TIMEZONE, 'accountability', 1
                 )
-                logger.info(f"Initialized settings for owner {OWNER_ID}")
+                logger.info(f"Initialized default settings for owner {OWNER_ID}")
 
-            row = await conn.fetchrow("SELECT * FROM schedule WHERE user_id = $1", OWNER_ID)
-            if row is None:
-                default_times = ["14:13", "14:15", "17:00", "23:00"]
-                for time_str in default_times:
-                    await conn.execute(
-                        "INSERT INTO schedule (user_id, ping_time) VALUES ($1, $2)",
-                        OWNER_ID, time_str
-                    )
-                logger.info(f"Initialized default schedule for owner {OWNER_ID}")
-        logger.info("Database initialized successfully.")
+        logger.info("Database initialized and migrations checked successfully.")
     except Exception as e:
         logger.error(f"Error initializing database: {e}", exc_info=True)
 
 
-async def get_user_setting(user_id: int, setting_name: str) -> str:
+async def get_user_setting(user_id: int, setting_name: str) -> Union[str, int, None]:
     """Retrieves a specific setting for a user."""
     async with POOL.acquire() as conn:
         row = await conn.fetchrow(f"SELECT {setting_name} FROM settings WHERE user_id = $1", user_id)
-        return row[setting_name] if row else (DEFAULT_TIMEZONE if setting_name == 'timezone' else 'accountability')
+        if not row:
+            # Return defaults for specific settings if user record doesn't exist
+            if setting_name == 'timezone': return DEFAULT_TIMEZONE
+            if setting_name == 'persona': return 'accountability'
+            if setting_name == 'ping_frequency_hours': return 1
+            return None
+        return row[setting_name]
 
-async def update_user_setting(user_id: int, setting_name: str, value: str):
+
+async def update_user_setting(user_id: int, setting_name: str, value: Union[str, int]):
     """Updates a specific setting for a user."""
     async with POOL.acquire() as conn:
-        await conn.execute(f"UPDATE settings SET {setting_name} = $1 WHERE user_id = $2", value, user_id)
+        # Use an UPSERT to handle cases where the user's settings row might not exist yet
+        await conn.execute(
+            f"""
+            INSERT INTO settings (user_id, {setting_name}) VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET {setting_name} = $2;
+            """,
+            user_id, value
+        )
 
-async def get_schedule(user_id: int) -> List[str]:
-    """Retrieves the schedule for a user."""
-    async with POOL.acquire() as conn:
-        rows = await conn.fetch("SELECT ping_time FROM schedule WHERE user_id = $1 ORDER BY ping_time", user_id)
-        return [row['ping_time'] for row in rows]
-
-async def update_schedule(user_id: int, times: List[str]):
-    """Updates the entire schedule for a user."""
-    async with POOL.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute("DELETE FROM schedule WHERE user_id = $1", user_id)
-            for time_str in times:
-                await conn.execute("INSERT INTO schedule (user_id, ping_time) VALUES ($1, $2)", user_id, time_str)
 
 async def add_message(user_id: int, role: str, content: str):
     """Adds a message to the history and enforces the 50-message limit."""
@@ -87,11 +102,17 @@ async def add_message(user_id: int, role: str, content: str):
                 user_id, role, content
             )
             # Enforce the 50 message limit by deleting the oldest message
+            # This is slightly inefficient but good enough for a single-user bot.
+            # A better approach for multi-user systems would involve partitions or a cleanup job.
             await conn.execute("""
                 DELETE FROM messages WHERE id IN (
-                    SELECT id FROM messages WHERE user_id = $1 ORDER BY timestamp DESC OFFSET 50
-                )
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY timestamp DESC) as rn
+                        FROM messages WHERE user_id = $1
+                    ) t WHERE t.rn > 50
+                );
             """, user_id)
+
 
 async def get_last_n_messages(user_id: int, n: int = 50) -> List[Tuple[str, str]]:
     """Retrieves the last N messages for a user."""
