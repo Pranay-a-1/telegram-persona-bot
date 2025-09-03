@@ -6,3 +6,5 @@ SQLAlchemy
 groq
 psycopg2-binary
 asyncpg
+requests
+

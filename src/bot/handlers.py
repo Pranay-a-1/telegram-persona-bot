@@ -156,7 +156,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Get context for response generation
     current_persona = await db_utils.get_user_setting(user_id, 'persona')
-    history = await db_utils.get_last_n_messages(user_id, n=20) # Use last 20 messages for context
+    history = await db_utils.get_last_n_messages(user_id, n=50) # Use last 50 messages for context
 
     # Generate and send response
     bot_response = await personas.generate_response(current_persona, user_message, history)

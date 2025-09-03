@@ -1,6 +1,8 @@
 # src/bot/personas.py
 import os
 import logging
+import requests
+import json
 from typing import List, Tuple, Dict, Any
 
 # Set up logging
@@ -9,17 +11,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Optional LLM integration with Groq
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-USE_LLM = bool(GROQ_API_KEY)
+# --- OpenRouter LLM Integration ---
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+USE_LLM = bool(OPENROUTER_API_KEY)
 
-if USE_LLM:
-    try:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-    except ImportError:
-        print("Groq library not found. LLM features will be disabled.")
-        USE_LLM = False
+# --- OpenRouter API Configuration ---
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Using a free model as a default from the OpenRouter docs
+DEFAULT_MODEL = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"
+
+if not USE_LLM:
+    print("OPENROUTER_API_KEY not found. LLM features will be disabled.")
+
 
 PERSONAS: Dict[str, Dict[str, Any]] = {
     "motivational": {
@@ -77,14 +80,24 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
             # Add current user message
             messages_for_llm.append({"role": "user", "content": user_message})
             
-            chat_completion = client.chat.completions.create(
-                messages=messages_for_llm,
-                # Use a supported model
-                model="openai/gpt-oss-120b",  # Updated model name
-                temperature=0.7,
-                max_tokens=8000,
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": DEFAULT_MODEL,
+                "messages": messages_for_llm,
+                "temperature": 0.7,
+                "max_tokens": 4096, # Adjusted for safety with free models
+            }
+
+            response = requests.post(
+                OPENROUTER_API_URL, headers=headers, data=json.dumps(data)
             )
-            return chat_completion.choices[0].message.content
+            response.raise_for_status()  # Raise an exception for bad status codes
+            
+            result = response.json()
+            return result['choices'][0]['message']['content']
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             # Fallback to template-based response
@@ -113,13 +126,24 @@ async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
             # Add a specific instruction for the LLM to generate a check-in
             messages_for_llm.append({"role": "user", "content": "It's time for a scheduled check-in. Re-engage me based on our conversation so far, without explicitly saying 'this is a check-in'. Keep it natural and in character."})
 
-            chat_completion = client.chat.completions.create(
-                messages=messages_for_llm,
-                model="openai/gpt-oss-120b",
-                temperature=0.7, # Slightly higher temp for more creative pings
-                max_tokens=8000,
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": DEFAULT_MODEL,
+                "messages": messages_for_llm,
+                "temperature": 0.75, # Slightly higher temp for more creative pings
+                "max_tokens": 4096,
+            }
+
+            response = requests.post(
+                OPENROUTER_API_URL, headers=headers, data=json.dumps(data)
             )
-            return chat_completion.choices[0].message.content
+            response.raise_for_status()
+
+            result = response.json()
+            return result['choices'][0]['message']['content']
         except Exception as e:
             logger.error(f"LLM-based ping failed: {e}. Falling back to template.")
             # Fallback to template on error
