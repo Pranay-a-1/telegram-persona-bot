@@ -44,7 +44,7 @@ async def send_ping(bot_token: str, user_id: int):
         bot = Bot(token=bot_token)
         current_persona = await db_utils.get_user_setting(user_id, 'persona')
         # Fetch conversation history to make the ping context-aware
-        history = await db_utils.get_last_n_messages(user_id, n=20)
+        history = await db_utils.get_last_n_messages(user_id, n=200)
         message = await generate_ping(current_persona, history) # Pass history to the generator
         await bot.send_message(chat_id=user_id, text=message)
         # Also, save the bot's ping to memory so it knows it just sent it
