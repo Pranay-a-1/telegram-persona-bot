@@ -81,8 +81,8 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
                 messages=messages_for_llm,
                 # Use a supported model
                 model="openai/gpt-oss-120b",  # Updated model name
-                temperature=0.7,
-                max_tokens=8000,
+                temperature=0.8,
+                max_tokens=32000,
             )
             return chat_completion.choices[0].message.content
         except Exception as e:
@@ -96,11 +96,35 @@ async def generate_template_response(persona: str, user_message: str, history: L
     """Generate response using templates when LLM is not available."""
     return "LLM is not available. Please try again later or contact the administrator."
 
-async def generate_ping(persona: str) -> str:
-    """Generates a scheduled ping message based on the persona."""
+async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
+    """Generates a scheduled ping message based on the persona, now with memory."""
     if persona not in PERSONAS:
         persona = "accountability"
     
+    # --- LLM-based Ping Generation ---
+    if USE_LLM:
+        try:
+            persona_config = PERSONAS[persona]
+            messages_for_llm = [{"role": "system", "content": persona_config["system_prompt"]}]
+            for role, content in history:
+                role = "assistant" if role == "bot" else "user"
+                messages_for_llm.append({"role": role, "content": content})
+            
+            # Add a specific instruction for the LLM to generate a check-in
+            messages_for_llm.append({"role": "user", "content": "It's time for a scheduled check-in. Re-engage me based on our conversation so far, without explicitly saying 'this is a check-in'. Keep it natural and in character."})
+
+            chat_completion = client.chat.completions.create(
+                messages=messages_for_llm,
+                model="openai/gpt-oss-120b",
+                temperature=0.8, # Slightly higher temp for more creative pings
+                max_tokens=32000,
+            )
+            return chat_completion.choices[0].message.content
+        except Exception as e:
+            logger.error(f"LLM-based ping failed: {e}. Falling back to template.")
+            # Fallback to template on error
+
+    # --- Template-based Fallback ---
     ping_templates = {
         "motivational": "Hey! Just a little nudge to remind you how awesome you are. Keep shining! ✨",
         "accountability": "Scheduled check-in. How are you progressing on your goals?",

@@ -36,7 +36,7 @@ async def initialize_database():
             # --- Schema Migrations ---
             # Migration 1: Add ping_frequency_hours if it doesn't exist
             try:
-                await conn.execute("ALTER TABLE settings ADD COLUMN ping_frequency_hours INTEGER NOT NULL DEFAULT 1;")
+                await conn.execute("ALTER TABLE settings ADD COLUMN ping_frequency_hours REAL NOT NULL DEFAULT 1;")
                 logger.info("Migration successful: Added 'ping_frequency_hours' column to settings.")
             except asyncpg.exceptions.DuplicateColumnError:
                 # Column already exists, which is fine.
@@ -50,6 +50,14 @@ async def initialize_database():
                 logger.info("Migration successful: Dropped obsolete 'schedule' table.")
             except Exception as e:
                 logger.error(f"Error dropping 'schedule' table: {e}")
+            
+            # Migration 3: Change ping_frequency_hours to REAL for fractional values
+            try:
+                await conn.execute("ALTER TABLE settings ALTER COLUMN ping_frequency_hours TYPE REAL;")
+                logger.info("Migration successful: Changed 'ping_frequency_hours' column type to REAL.")
+            except Exception as e:
+                # This will fail if there's an issue, but we can log it.
+                logger.warning(f"Could not alter 'ping_frequency_hours' column type, it might already be correct or have data issues: {e}")
 
 
             # --- Default Data Initialization for Owner ---
@@ -67,20 +75,25 @@ async def initialize_database():
         logger.error(f"Error initializing database: {e}", exc_info=True)
 
 
-async def get_user_setting(user_id: int, setting_name: str) -> Union[str, int, None]:
+async def get_user_setting(user_id: int, setting_name: str) -> Union[str, int, float, None]:
     """Retrieves a specific setting for a user."""
     async with POOL.acquire() as conn:
         row = await conn.fetchrow(f"SELECT {setting_name} FROM settings WHERE user_id = $1", user_id)
-        if not row:
-            # Return defaults for specific settings if user record doesn't exist
+        
+        value = row[setting_name] if row else None
+
+        if value is None:
+            # Return defaults for specific settings if the user record or the specific value doesn't exist.
+            logger.warning(f"Value for '{setting_name}' is None for user {user_id}. Falling back to default.")
             if setting_name == 'timezone': return DEFAULT_TIMEZONE
             if setting_name == 'persona': return 'accountability'
             if setting_name == 'ping_frequency_hours': return 1
             return None
-        return row[setting_name]
+            
+        return value
 
 
-async def update_user_setting(user_id: int, setting_name: str, value: Union[str, int]):
+async def update_user_setting(user_id: int, setting_name: str, value: Union[str, int, float]):
     """Updates a specific setting for a user."""
     async with POOL.acquire() as conn:
         # Use an UPSERT to handle cases where the user's settings row might not exist yet

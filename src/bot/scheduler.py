@@ -43,8 +43,12 @@ async def send_ping(bot_token: str, user_id: int):
     try:
         bot = Bot(token=bot_token)
         current_persona = await db_utils.get_user_setting(user_id, 'persona')
-        message = await generate_ping(current_persona)
+        # Fetch conversation history to make the ping context-aware
+        history = await db_utils.get_last_n_messages(user_id, n=20)
+        message = await generate_ping(current_persona, history) # Pass history to the generator
         await bot.send_message(chat_id=user_id, text=message)
+        # Also, save the bot's ping to memory so it knows it just sent it
+        await db_utils.add_message(user_id, 'bot', message)
         logger.info(f"Sent scheduled ping to user {user_id} at {datetime.now()}")
     except Exception as e:
         logger.error(f"Failed to send ping to {user_id}: {e}", exc_info=True)
@@ -88,23 +92,34 @@ async def sync_and_reschedule_jobs():
         return
 
     # --- Generate Cron Expression ---
-    # The "Do Not Disturb" period is from 00:00 to 05:59. Pings can start at 06:00.
-    # The active period is from 06:00 to 23:59.
-    hour_cron = f"6-23/{frequency_hours}"
-    if frequency_hours == 24:
-        # For a 24-hour frequency, just ping once a day at the start of the active window.
-        hour_cron = "6"
+    hour_cron = None
+    minute_cron = '0'
 
-    logger.info(
-        f"Scheduling job for user {OWNER_ID} with frequency {frequency_hours} hours. "
-        f"Cron hour expression: '{hour_cron}' in timezone {user_timezone_str}"
-    )
+    # Use a safer check for floating point numbers
+    if frequency_hours < 1: # Handles 1 minutes (0.03) and any other fractional hour
+        minute_cron = "*/1"
+        hour_cron = "*" # Every hour
+        logger.info(
+            f"Scheduling job for user {OWNER_ID} with 2-minute frequency for testing."
+        )
+    else:
+        # The "Do Not Disturb" period is from 00:00 to 05:59. Pings can start at 06:00.
+        # The active period is from 06:00 to 23:59.
+        hour_cron = f"6-23/{int(frequency_hours)}"
+        if frequency_hours == 24:
+            # For a 24-hour frequency, just ping once a day at the start of the active window.
+            hour_cron = "6"
+        logger.info(
+            f"Scheduling job for user {OWNER_ID} with frequency {int(frequency_hours)} hours. "
+            f"Cron hour expression: '{hour_cron}' in timezone {user_timezone_str}"
+        )
+
 
     scheduler.add_job(
         send_ping,
         'cron',
         hour=hour_cron,
-        minute=0,
+        minute=minute_cron,
         timezone=pytz.timezone(user_timezone_str),
         id=job_id,
         args=[TELEGRAM_TOKEN, OWNER_ID],
@@ -118,4 +133,3 @@ async def sync_and_reschedule_jobs():
             logger.info(f"- Job ID: {job.id}, Trigger: {job.trigger}, Next run: {job.next_run_time}")
     else:
         logger.warning("No jobs scheduled after sync!")
-

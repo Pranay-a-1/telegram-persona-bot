@@ -13,7 +13,7 @@ from bot import memory, personas, scheduler
 # --- Constants ---
 OWNER_ID = int(os.getenv("OWNER_TELEGRAM_ID", 0))
 VALID_PERSONAS = list(personas.PERSONAS.keys())
-VALID_FREQUENCIES = [1, 2, 3, 4, 6, 8, 12, 24]
+VALID_FREQUENCIES = [0.03, 1, 2, 3, 4, 6, 8, 12, 24]
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -89,13 +89,17 @@ async def set_schedule_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             f"Pings are currently set to every {current_frequency} hour(s).\n\n"
             "To change this, use `/set_schedule <hours>`.\n"
-            f"Valid options for hours are: {freq_options}.\n\n"
+            f"Valid options for hours are: {freq_options}.\n"
+            "Use 0.03 for 1 minutes for testing.\n\n"
             "Pings will not be sent between midnight and 6 AM."
         )
         return
 
     try:
-        new_frequency = int(context.args[0])
+        # Sanitize input to handle both dot and comma as decimal separators
+        cleaned_arg = context.args[0].replace(',', '.')
+        new_frequency = float(cleaned_arg)
+
         if new_frequency not in VALID_FREQUENCIES:
             await update.message.reply_text(f"Invalid frequency. Please choose from: {', '.join(map(str, VALID_FREQUENCIES))}")
             return
@@ -103,9 +107,14 @@ async def set_schedule_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await db_utils.update_user_setting(user_id, 'ping_frequency_hours', new_frequency)
         await scheduler.sync_and_reschedule_jobs()  # Immediately apply the new schedule
         
-        await update.message.reply_text(
-            f"Success! I will now ping you every {new_frequency} hour(s) between 6 AM and midnight."
-        )
+        if new_frequency == 0.03:
+             await update.message.reply_text(
+                f"Success! I will now ping you every 2 minutes for testing."
+            )
+        else:
+            await update.message.reply_text(
+                f"Success! I will now ping you every {int(new_frequency)} hour(s) between 6 AM and midnight."
+            )
         logger.info(f"User {user_id} updated ping frequency to every {new_frequency} hours.")
 
     except (IndexError, ValueError):
