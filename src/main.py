@@ -2,7 +2,11 @@
 import asyncio
 import logging
 import os
+import sys
 from dotenv import load_dotenv
+
+# --- Add src to Python path for proper imports ---
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # --- Load Environment Variables ---
 # This MUST be at the top, before any other local modules are imported.
@@ -10,6 +14,7 @@ load_dotenv()
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
+# Import using relative imports since we're in src/
 from database import db_utils
 from bot import handlers, scheduler
 
@@ -24,7 +29,6 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OWNER_ID = os.getenv("OWNER_TELEGRAM_ID")
 PORT = int(os.getenv("PORT", 8000))  # Railway provides PORT automatically
-
 
 async def main():
     """Initializes and runs the bot application."""
@@ -62,7 +66,8 @@ async def main():
 
         # Initialize and start the bot application
         await application.initialize()
-        await application.start()        
+        await application.start()
+        
         # For Railway deployment - use webhook or polling based on environment
         if os.getenv("RAILWAY_ENVIRONMENT"):
             # Railway environment - keep simple polling
@@ -72,7 +77,6 @@ async def main():
             # Local development
             await application.updater.start_polling()
             logger.info("Bot started with polling for local development.")
-
 
         # Keep the script running
         while True:
@@ -89,7 +93,6 @@ async def main():
         if application.running:
             await application.shutdown()
             logger.info("Bot application has been shut down.")
-
 
 if __name__ == "__main__":
     try:
