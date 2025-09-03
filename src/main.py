@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # --- Get Environment Variables ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OWNER_ID = os.getenv("OWNER_TELEGRAM_ID")
+PORT = int(os.getenv("PORT", 8000))  # Railway provides PORT automatically
 
 
 async def main():
@@ -61,9 +62,17 @@ async def main():
 
         # Initialize and start the bot application
         await application.initialize()
-        await application.start()
-        await application.updater.start_polling()
-        logger.info("Bot has started and is now polling.")
+        await application.start()        
+        # For Railway deployment - use webhook or polling based on environment
+        if os.getenv("RAILWAY_ENVIRONMENT"):
+            # Railway environment - keep simple polling
+            await application.updater.start_polling()
+            logger.info("Bot started with polling for Railway deployment.")
+        else:
+            # Local development
+            await application.updater.start_polling()
+            logger.info("Bot started with polling for local development.")
+
 
         # Keep the script running
         while True:
