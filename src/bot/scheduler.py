@@ -18,15 +18,26 @@ logger = logging.getLogger(__name__)
 
 # --- Environment Variables ---
 # Use DATABASE_URL from environment, replacing 'asyncpg' with 'psycopg2' for SQLAlchemy
-DATABASE_URL = os.getenv("DATABASE_URL", "").replace("asyncpg", "psycopg2")
+# --- Environment Variables ---
+# Use DATABASE_URL from environment, replacing 'asyncpg' with 'psycopg2' for SQLAlchemy
+db_url_raw = os.getenv("DATABASE_URL")
+if not db_url_raw:
+    logger.warning("DATABASE_URL environment variable not set. Scheduler will use memory job store.")
+    DATABASE_URL = None
+else:
+    DATABASE_URL = db_url_raw.replace("asyncpg", "psycopg2")
+
 OWNER_ID_STR = os.getenv("OWNER_TELEGRAM_ID")
 OWNER_ID = int(OWNER_ID_STR) if OWNER_ID_STR else 0
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") # Get the token for pickling
 
 # --- Scheduler Setup ---
 jobstores = {
-    'default': SQLAlchemyJobStore(url=DATABASE_URL)
+    'default': SQLAlchemyJobStore(url=DATABASE_URL) if DATABASE_URL else None
 }
+# Filter out None values, so APScheduler falls back to MemoryJobStore if DATABASE_URL is not set
+jobstores = {k: v for k, v in jobstores.items() if v is not None}
+
 scheduler = AsyncIOScheduler(jobstores=jobstores, timezone=os.getenv("TIMEZONE", "UTC"))
 
 async def send_ping(bot_token: str, user_id: int):
