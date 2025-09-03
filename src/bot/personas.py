@@ -82,7 +82,7 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
                 # Use a supported model
                 model="openai/gpt-oss-120b",  # Updated model name
                 temperature=0.7,
-                max_tokens=32000,
+                max_tokens=8000,
             )
             return chat_completion.choices[0].message.content
         except Exception as e:
@@ -117,7 +117,7 @@ async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
                 messages=messages_for_llm,
                 model="openai/gpt-oss-120b",
                 temperature=0.7, # Slightly higher temp for more creative pings
-                max_tokens=32000,
+                max_tokens=8000,
             )
             return chat_completion.choices[0].message.content
         except Exception as e:

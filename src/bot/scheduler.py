@@ -44,7 +44,7 @@ async def send_ping(bot_token: str, user_id: int):
         bot = Bot(token=bot_token)
         current_persona = await db_utils.get_user_setting(user_id, 'persona')
         # Fetch conversation history to make the ping context-aware
-        history = await db_utils.get_last_n_messages(user_id, n=200)
+        history = await db_utils.get_last_n_messages(user_id, n=20)
         message = await generate_ping(current_persona, history) # Pass history to the generator
         await bot.send_message(chat_id=user_id, text=message)
         # Also, save the bot's ping to memory so it knows it just sent it
@@ -96,8 +96,8 @@ async def sync_and_reschedule_jobs():
     minute_cron = '0'
 
     # Use a safer check for floating point numbers
-    if frequency_hours < 1: # Handles 1 minutes (0.03) and any other fractional hour
-        minute_cron = "*/1"
+    if frequency_hours < 1: # Handles 2 minutes (0.03) and any other fractional hour
+        minute_cron = "*/2"
         hour_cron = "*" # Every hour
         logger.info(
             f"Scheduling job for user {OWNER_ID} with 2-minute frequency for testing."
