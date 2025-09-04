@@ -87,7 +87,7 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
-                "temperature": 0.7,
+                "temperature": 1,
                 "max_tokens": 4096, # Adjusted for safety with free models
             }
 
@@ -133,7 +133,7 @@ async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
-                "temperature": 0.75, # Slightly higher temp for more creative pings
+                "temperature": 1, # Slightly higher temp for more creative pings
                 "max_tokens": 4096,
             }
 
