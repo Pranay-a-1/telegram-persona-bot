@@ -16,9 +16,9 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 USE_LLM = bool(OPENROUTER_API_KEY)
 
 # --- OpenRouter API Configuration ---
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Using a free model as a default from the OpenRouter docs
-DEFAULT_MODEL = "openai/gpt-oss-120b:free"
+DEFAULT_MODEL = "deepseek/deepseek-chat-v3.1:free"
 
 if not USE_LLM:
     print("OPENROUTER_API_KEY not found. LLM features will be disabled.")
@@ -87,8 +87,8 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
-                "temperature": 1,
-                "max_tokens": 4096, # Adjusted for safety with free models
+                "temperature": 1.2,
+                "max_tokens": 8000, # Adjusted for safety with free models
             }
 
             response = requests.post(
@@ -133,8 +133,8 @@ async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
-                "temperature": 1, # Slightly higher temp for more creative pings
-                "max_tokens": 4096,
+                "temperature": 1.2, # Slightly higher temp for more creative pings
+                "max_tokens": 8000,
             }
 
             response = requests.post(
