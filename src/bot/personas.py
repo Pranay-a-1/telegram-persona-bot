@@ -18,7 +18,7 @@ USE_LLM = bool(OPENROUTER_API_KEY)
 # --- OpenRouter API Configuration ---
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Using a free model as a default from the OpenRouter docs
-DEFAULT_MODEL = "deepseek/deepseek-chat-v3.1:free"
+DEFAULT_MODEL = "openai/gpt-oss-120b:free"
 
 if not USE_LLM:
     print("OPENROUTER_API_KEY not found. LLM features will be disabled.")
