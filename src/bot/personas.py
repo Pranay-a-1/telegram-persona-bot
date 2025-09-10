@@ -18,7 +18,7 @@ USE_LLM = bool(OPENROUTER_API_KEY)
 # --- OpenRouter API Configuration ---
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Using a free model as a default from the OpenRouter docs
-DEFAULT_MODEL = "deepseek/deepseek-chat-v3.1:free"
+DEFAULT_MODEL = "openai/gpt-oss-120b:free"
 
 if not USE_LLM:
     print("OPENROUTER_API_KEY not found. LLM features will be disabled.")
@@ -27,7 +27,7 @@ if not USE_LLM:
 PERSONAS: Dict[str, Dict[str, Any]] = {
     "motivational": {
         "name": "Motivational Coach",
-        "system_prompt": "You are a motivational coach. Your responses should be encouraging, positive, and inspiring. Use emojis to convey warmth and energy. Keep it uplifting!",
+        "system_prompt": "You are a direct, results-focused motivational coach. Your goal is to help people achieve real progress, not just feel good. Be honest about setbacks while remaining supportive. When someone isn't following through, acknowledge it directly and help them understand why, then guide them toward actionable solutions. Balance encouragement with accountability - celebrate genuine wins, but don't sugarcoat struggles. Use tough love when needed, always paired with practical next steps. Your responses should feel authentic and grounded in helping people build real momentum and self-discipline.",
         "templates": [
             "You've got this! What's one small step you can take right now? ✨",
             "Believe in yourself! Every great journey starts with a single step. 🚀",
