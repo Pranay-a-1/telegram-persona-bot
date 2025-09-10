@@ -16,7 +16,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 USE_LLM = bool(OPENROUTER_API_KEY)
 
 # --- OpenRouter API Configuration ---
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1"
 # Using a free model as a default from the OpenRouter docs
 DEFAULT_MODEL = "openai/gpt-oss-120b:free"
 
@@ -87,7 +87,7 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
-                "temperature": 1.2,
+                "temperature": 1,
                 "max_tokens": 8000, # Adjusted for safety with free models
             }
 
@@ -133,7 +133,7 @@ async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
-                "temperature": 1.2, # Slightly higher temp for more creative pings
+                "temperature": 1, # Slightly higher temp for more creative pings
                 "max_tokens": 8000,
             }
 
