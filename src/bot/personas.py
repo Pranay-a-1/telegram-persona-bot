@@ -16,7 +16,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 USE_LLM = bool(OPENROUTER_API_KEY)
 
 # --- OpenRouter API Configuration ---
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Using a free model as a default from the OpenRouter docs
 DEFAULT_MODEL = "openai/gpt-oss-120b:free"
 
