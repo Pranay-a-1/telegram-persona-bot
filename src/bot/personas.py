@@ -18,7 +18,8 @@ USE_LLM = bool(OPENROUTER_API_KEY)
 # --- OpenRouter API Configuration ---
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Using a free model as a default from the OpenRouter docs
-DEFAULT_MODEL = "deepseek/deepseek-chat-v3.1:free"
+DEFAULT_MODEL = "x-ai/grok-4-fast:free"
+DEEPSEEK_MODEL = "deepseek/deepseek-chat-v3.1:free"
 
 if not USE_LLM:
     print("OPENROUTER_API_KEY not found. LLM features will be disabled.")
@@ -101,8 +102,11 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
             data = {
                 "model": DEFAULT_MODEL,
                 "messages": messages_for_llm,
+                "reasoning": {
+                        "enabled": true
+                      }
                 "temperature": 1,
-                "max_tokens": 8000, # Adjusted for safety with free models
+                "max_tokens": 32000, # Adjusted for safety with free models
             }
 
             response = requests.post(
