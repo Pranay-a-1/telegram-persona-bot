@@ -11,6 +11,8 @@ from telegram import Bot
 from database import db_utils
 from bot.personas import generate_ping
 
+from bot.handlers import send_to_alexa
+
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -46,6 +48,10 @@ async def send_ping(bot_token: str, user_id: int):
         # Fetch conversation history to make the ping context-aware
         history = await db_utils.get_last_n_messages(user_id, n=50)
         message = await generate_ping(current_persona, history) # Pass history to the generator
+
+        # Now, send the same message to Alexa to be read aloud
+        send_to_alexa(f"Elon says: {message}") 
+
         await bot.send_message(chat_id=user_id, text=message)
         # Also, save the bot's ping to memory so it knows it just sent it
         await db_utils.add_message(user_id, 'bot', message)
