@@ -184,8 +184,8 @@ def send_to_alexa(message_text: str):
     """
     Sends a message to your Alexa device via Voice Monkey.
     """
-    token = os.getenv("VOICE_MONKEY_TOKEN")
-    device_id = os.getenv("VOICE_MONKEY_DEVICE_ID")
+    token = os.getenv("VOICE_MONKEY_TOKEN1")
+    device_id = os.getenv("VOICE_MONKEY_DEVICE_ID1")
 
     if not token or not device_id:
         print("Voice Monkey token or device ID not set in environment variables.")
