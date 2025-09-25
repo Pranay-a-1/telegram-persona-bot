@@ -170,7 +170,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(bot_response)
 
     # --- Step 2: Read the OUTGOING bot reply aloud --- (This is the new part)
-    send_to_alexa(f"The bot replied: {bot_response}")
+    send_to_alexa(f"Elon says: {bot_response}")
     # ---------------------------------------------------
     
     # Store bot response
