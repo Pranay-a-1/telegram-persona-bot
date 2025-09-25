@@ -11,7 +11,7 @@ from telegram import Bot
 from database import db_utils
 from bot.personas import generate_ping
 
-from bot.handlers import send_to_alexa
+from bot.utils import send_to_alexa
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
