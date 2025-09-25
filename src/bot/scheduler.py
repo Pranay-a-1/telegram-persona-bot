@@ -104,11 +104,11 @@ async def sync_and_reschedule_jobs():
         )
     else:
         # The "Do Not Disturb" period is from 00:00 to 05:59. Pings can start at 06:00.
-        # The active period is from 06:00 to 23:59.
-        hour_cron = f"6-23/{int(frequency_hours)}"
+        # The active period is from 07:00 to 22:59.
+        hour_cron = f"7-22/{int(frequency_hours)}"
         if frequency_hours == 24:
             # For a 24-hour frequency, just ping once a day at the start of the active window.
-            hour_cron = "6"
+            hour_cron = "7"
         logger.info(
             f"Scheduling job for user {OWNER_ID} with frequency {int(frequency_hours)} hours. "
             f"Cron hour expression: '{hour_cron}' in timezone {user_timezone_str}"
