@@ -9,6 +9,9 @@ from telegram.ext import ContextTypes
 
 from database import db_utils
 from bot import memory, personas, scheduler
+import requests                
+import urllib.parse
+
 
 # --- Constants ---
 OWNER_ID = int(os.getenv("OWNER_TELEGRAM_ID", 0))
@@ -150,7 +153,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles all non-command text messages."""
     user_id = update.effective_user.id
     user_message = update.message.text
-    
+
+    # --- ADDED: Send message to Alexa via Voice Monkey ---
+    send_to_alexa(f"New message from Telegram says: {user_message}")
+    # ----------------------------------------------------
+
     # Store user message
     await db_utils.add_message(user_id, 'user', user_message)
     
@@ -169,3 +176,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Logs errors caused by updates."""
     logger.error(f"Exception while handling an update: {context.error}", exc_info=context.error)
+
+
+
+# --- Voice Monkey Integration ---
+def send_to_alexa(message_text: str):
+    """
+    Sends a message to your Alexa device via Voice Monkey.
+    """
+    token = os.getenv("VOICE_MONKEY_TOKEN")
+    device_id = os.getenv("VOICE_MONKEY_DEVICE_ID")
+
+    if not token or not device_id:
+        print("Voice Monkey token or device ID not set in environment variables.")
+        return
+
+    # URL-encode the message to handle special characters and spaces
+    encoded_message = urllib.parse.quote(message_text)
+
+    # Construct the full API URL
+    api_url = f"https://api-v2.voicemonkey.io/announcement?token={token}&device={device_id}&text={encoded_message}"
+
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()
+        print("Successfully sent message to Alexa via Voice Monkey.")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending to Voice Monkey: {e}")
+# --- End of Voice Monkey Integration ---
