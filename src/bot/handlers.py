@@ -155,7 +155,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
     # --- ADDED: Send message to Alexa via Voice Monkey ---
-    send_to_alexa(f"New message from Telegram says: {user_message}")
+    #send_to_alexa(f"New message from Telegram says: {user_message}")
     # ----------------------------------------------------
 
     # Store user message
@@ -168,6 +168,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Generate and send response
     bot_response = await personas.generate_response(current_persona, user_message, history)
     await update.message.reply_text(bot_response)
+
+    # --- Step 2: Read the OUTGOING bot reply aloud --- (This is the new part)
+    send_to_alexa(f"The bot replied: {bot_response}")
+    # ---------------------------------------------------
     
     # Store bot response
     await db_utils.add_message(user_id, 'bot', bot_response)
