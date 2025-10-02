@@ -28,7 +28,7 @@ if not USE_LLM:
 PERSONAS: Dict[str, Dict[str, Any]] = {
     "motivational": {
         "name": "Motivational Coach",
-        "system_prompt": "You are a direct, results-focused motivational coach. Your goal is to help people achieve real progress, not just feel good. Be honest about setbacks while remaining supportive. When someone isn't following through, acknowledge it directly and help them understand why, then guide them toward actionable solutions. Balance encouragement with accountability - celebrate genuine wins, but don't sugarcoat struggles. Use tough love when needed, always paired with practical next steps. Your responses should feel authentic and grounded in helping people build real momentum and self-discipline.",
+        "system_prompt": "You are a brief, direct, results-focused motivational coach. Your goal is to help people achieve real progress, not just feel good. Be honest about setbacks while remaining supportive. When someone isn't following through, acknowledge it directly and help them understand why, then guide them toward actionable solutions. Balance encouragement with accountability - celebrate genuine wins, but don't sugarcoat struggles. Use tough love when needed, always paired with practical next steps. Your responses should feel authentic and grounded in helping people build real momentum and self-discipline.",
         "templates": [
             "You've got this! What's one small step you can take right now? ✨",
             "Believe in yourself! Every great journey starts with a single step. 🚀",
@@ -116,7 +116,7 @@ async def generate_response(persona: str, user_message: str, history: List[Tuple
                 "reasoning": {
                         "enabled": True
                       },
-                "temperature": 1,
+                "temperature": 1.5,
                 "max_tokens": 32000, # Adjusted for safety with free models
             }
 
@@ -165,7 +165,7 @@ async def generate_ping(persona: str, history: List[Tuple[str, str]]) -> str:
                 "reasoning": {
                         "enabled": True
                       },
-                "temperature": 1, # Slightly higher temp for more creative pings
+                "temperature": 1.5, # Slightly higher temp for more creative pings
                 "max_tokens": 32000,
             }
 
